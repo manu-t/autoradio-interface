@@ -48,6 +48,8 @@
 #include <SPI.h>
 #include "can_ext.h"
 
+#include <NeoSWSerial.h>
+
 #define AFFA2_KEY_LOAD 0x0000 / * This at the bottom of the remote;) * /
 #define AFFA2_KEY_SRC_RIGHT 0x0001
 #define AFFA2_KEY_SRC_LEFT 0x0002
@@ -91,7 +93,31 @@ uint8_t pingMsg[] = {
 unsigned char msg5c1[8] = {0x74, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81};
 unsigned char msg4a9[8] = {0x74, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81};
 
+String Txt = "";      // text to display
+String savedTxt = ""; // new text wiating to be displayed
+bool flagUpdateTxt = false;
+
 SerialCommand sCmd;     // The SerialCommand object
+
+NeoSWSerial blueToothSerial(7,8);
+    
+static void handleRxChar( uint8_t c ) {
+  static String str = "";
+  if (isPrintable(c)) {
+    str += (char)c;
+  }
+  if (c == '\n') {
+    //Serial.println("newline");
+    str += (char)c; // append newline at the end of the string
+    //Serial.println(str);
+    if(str[0] == 'd') {
+      savedTxt = str.substring(2,str.length());
+      flagUpdateTxt = true;
+      //Serial.print(str);
+    }
+    str = "";
+  }
+}
 
 void setup() {
   Serial.begin(115200);
@@ -119,38 +145,6 @@ void setup() {
   // CAN Rx interrupt declaration
   attachInterrupt(0, MCP2515_ISR, FALLING); // start interrupt
 
-//  // set
-//  unsigned char txtOnMsg[8] = {0x70, 0xA2, 0xA2, 0xA2, 0xA2, 0xA2, 0xA2, 0xA2};
-////  CAN.sendMsgBuf(0x1c1, 0, 8, txtOnMsg);
-////  delay(1000);
-//  CAN.sendMsgBuf(0xa9, 0, 8, txtOnMsg);
-//  delay(1000); // display should respond 0x4A9
-
-  // set
-//  unsigned char OnPressed1Msg[8] = {0x70, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81}; // On button push
-//  CAN.sendMsgBuf(0x1B1, 0, 8, OnPressed1Msg);
-//  delay(100);
-//  unsigned char releasedMsg[8] = {0x74, 0xA2, 0xA2, 0xA2, 0xA2, 0xA2, 0xA2, 0xA2};
-//  CAN.sendMsgBuf(0x5B1, 0, 8, releasedMsg);
-//  delay(10);
-//  unsigned char OnPressedMsg[8] = {0x04, 0x52, 0x02, 0xFF, 0xFF, 0x81, 0x81, 0x81}; // On button push
-//  CAN.sendMsgBuf(0x1B1, 0, 8, OnPressedMsg);
-//  delay(100);
-  //
-//  CAN.sendMsgBuf(0x5B1, 0, 8, releasedMsg);
-//  delay(10);
-  
-//  unsigned char OnReleasedMsg[8] = {0x04, 0x52, 0x00, 0xFF, 0xFF, 0x81, 0x81, 0x81}; // On button release
-//  CAN.sendMsgBuf(0x1B1, 0, 8, OnReleasedMsg);
-//  delay(10);
-//  //
-//  CAN.sendMsgBuf(0x5B1, 0, 8, releasedMsg);
-//  delay(10);
-
-//  unsigned char msg1c1[8] = {0x02, 0x64, 0x0F, 0xA2, 0xA2, 0xA2, 0xA2, 0xA2};
-//  CAN.sendMsgBuf(0x1C1, 0, 8, msg1c1);
-//  delay(10);
-
   startSync();
   delay(1);
   syncOK();
@@ -168,8 +162,11 @@ void setup() {
   enableDisplay();
   delay(50);
   delay(10);
-
+  
 //  send_to_display(0x121, test_packet, sizeof(test_packet));
+
+  blueToothSerial.attachInterrupt( handleRxChar );
+  setupBlueToothConnection();
 }
 
 void loop() {
@@ -180,15 +177,6 @@ void loop() {
     while (CAN_MSGAVAIL == CAN.checkReceive()) {      
       CAN.readMsgBuf(&len, buf);    // read data,  len: data length, buf: data buf
       canId = CAN.getCanId();
-//      //Print data to the serial console 
-//      Serial.print("CAN ID: ");
-//      Serial.println(canId);
-//      Serial.print("data len = ");Serial.println(len);
-//      //This loops through each byte of data and prints it
-//      for(int i = 0; i<len; i++) {   // print the data
-//        Serial.print(buf[i]);Serial.print("\t");
-//      }
-//      Serial.println();Serial.println();
       if(canId == 0x3CF) {  // pong received  // TODO: check entire frame (not just can ID)
 //        CAN.sendMsgBuf(0x3DF, NULL, 8, pingMsg);
           //Serial.println("Pion");Serial.println();
@@ -197,16 +185,10 @@ void loop() {
 //        Serial.println("TEXT ACK received"); Serial.println();
 //      }
       else if(canId == 0x1C1) {
-        //unsigned char msg5c1[8] = {0x74, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81};
         CAN.sendMsgBuf(0x5C1, NULL, 8, msg5c1);
-//        CAN.sendMsgBuf(0x5C1, NULL, 8, msg5c1);
-//        Serial.println("0x1C1");
       }
       else if(canId == 0x0A9) {
-        //unsigned char msg4a9[8] = {0x74, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81};
         CAN.sendMsgBuf(0x4A9, NULL, 8, msg4a9);
-//        CAN.sendMsgBuf(0x4A9, NULL, 8, msg4a9);
-//        Serial.println("0x0A9");
       }
       else {
 //        Serial.print("CAN ID: "); Serial.println(canId, HEX); Serial.println();
@@ -219,6 +201,22 @@ void loop() {
 
   // TODO: periodically send sync command to display (100ms -> 1sec)
   syncOK();
+
+  if(flagUpdateTxt) {
+    Txt = savedTxt;
+    flagUpdateTxt = false;
+    Serial.print(Txt);
+    Serial.println(Txt.length()-1); // doesn't count ending char
+  }
+
+  if(Txt == "") { // empty string at startup
+    display8ByteString("HELLO   ");  
+  }
+
+  //scrollDisplay(Txt);
+
+  //String teststr = "BUDDY HOLLYMOFO - WEEZER AND FUCK";
+  wordScroll(/*teststr*/Txt);
   delay(200);
 }
 
@@ -406,8 +404,6 @@ void displaySong() {
       s += ' ';
     }
   }
-  Serial.print(s); Serial.print(" ("); Serial.print(s.length()); Serial.println(")");
-  Serial.println();
 
 //  // print 8 bytes at a time
 //  for(int i=0; i<s.length(); i+=8) {
@@ -433,41 +429,7 @@ void displaySong() {
 //    s += ' '; // pad string with spaces to make 8 byte sections string
 //  }
 
-  Serial.print(s); Serial.print(" ("); Serial.print(s.length()); Serial.println(")");
-  Serial.println();
-
-  String s8 = s.substring(0,8);
-  while( s8.length() < 8) {
-    s8 += ' ';  // pad to 8 byte string  
-  }
-  Serial.println(s8);
-  
-  // display 1st 8 bytes
-  display8ByteString(s8);
-  syncOK(); // every 100ms to 1sec
-  delay(1000);
-  syncOK(); // every 100ms to 1sec
-  
-  // scroll after 8 bytes
-  for(int i=8;i<s.length();i++) {
-    Serial.println(i);
-    if( (i+8) >= s.length()) {
-      // pad last section to 8 bytes
-      s8 = s.substring(i,s.length());
-      while(s8.length()<8) {
-        s8 += ' '; // pad string with spaces to make 8 byte string
-      }
-      i=s.length(); // stop scrolling at last section
-    }
-    else {
-      s8 = s.substring(i,i+8);  
-    }
-    
-    Serial.println(s8);
-    display8ByteString(s8);
-    delay(500);
-    syncOK(); // every 100ms to 1sec
-  }
+  scrollDisplay(s);
 }
 
 void display8ByteString(String s) {
@@ -495,3 +457,139 @@ void display8ByteString(String s) {
 //  Serial.println();
   send_to_display(0x121,(uint8_t *)(charArray), 27);
 }
+
+void setupBlueToothConnection() // Configuration du module Bluetooth Esclave
+{
+  blueToothSerial.begin(38400);                              //Mettre la bande passante du module Bluetooth à 38400 baud
+  delay(100);                                               // Attendre 100ms
+  sendBlueToothCommand("\r\n+STWMOD=0\r\n");                 // Configuration en esclave
+  sendBlueToothCommand("\r\n+STNA=ERMABOARD_Bluetooth\r\n"); // Définir le nom du périphérique 
+  sendBlueToothCommand("\r\n+STAUTO=1\r\n");                 // autorise à se connecter automatiquement au dernier périphérique lié
+  sendBlueToothCommand("\r\n+STOAUT=1\r\n");                 // Autorise les appareils liés à se connecter
+//  sendBlueToothCommand("\r\n +STPIN=0000\r\n");              // Régler le PIN CODE à 0000
+  delay(200);                                               // Attendre 200ms
+  sendBlueToothCommand("\r\n+INQ=1\r\n");                    // Module visible en cas de recherche
+  delay(200);                                               // Attendre 200ms
+}
+
+void CheckOK()        //Vérifie si la réponse "OK" est reçu
+{
+  char a,b;
+  while(1)
+  {
+    if(blueToothSerial.available())      // Si un caractère présent sur l'UART Bluetooth
+    {
+      a = blueToothSerial.read();          // Stocké le premier caractère dans a
+
+      if('O' == a)                         // Si a = O
+      {
+
+        while(blueToothSerial.available()) // Tant qu'un caractère est disponible sur la liaison Bluetooth :
+        {
+          b = blueToothSerial.read();     // Stocké le caractère dans b
+          break;
+        }
+        if('K' == b)                       // Si b = K alors la réponse OK est bien reçu
+        {
+          break;
+        }
+      }
+    }
+  }
+
+  while( (a = blueToothSerial.read()) != -1)
+  {
+  }
+}
+
+void sendBlueToothCommand(char command[])
+{
+  blueToothSerial.print(command);
+  delay(50)/*CheckOK()*/;
+}
+
+void scrollDisplay(String s) {
+  if(s.length() == 0) {
+    return;  
+  }
+
+  s.trim(); // remove \r\n at the end of string
+  
+  //Serial.print(s); Serial.print(" ("); Serial.print(s.length()); Serial.println(")");
+  //Serial.println();
+
+  String s8 = s.substring(0,8);
+  while( s8.length() < 8) {
+    s8 += ' ';  // pad to 8 byte string  
+  }
+  //Serial.println(s8);
+  
+  // display 1st 8 bytes
+  display8ByteString(s8);
+  syncOK(); // every 100ms to 1sec
+  delay(1000);
+  syncOK(); // every 100ms to 1sec
+  
+  // scroll after 8 bytes
+  for(int i=8;i<s.length();i++) {
+    //Serial.println(i);
+    if( (i+8) >= s.length()) {
+      // pad last section to 8 bytes
+      s8 = s.substring(i,s.length());
+      while(s8.length()<8) {
+        s8 += ' '; // pad string with spaces to make 8 byte string
+      }
+      i=s.length(); // stop scrolling at last section
+    }
+    else {
+      s8 = s.substring(i,i+8);  
+    }
+    
+    //Serial.println(s8);
+    display8ByteString(s8);
+    delay(500);
+    syncOK(); // every 100ms to 1sec
+  }
+}
+
+void wordScroll(String s) {
+  if(s.length() == 0) {
+    return;  
+  }
+
+  s.trim(); // remove \r\n at the end of string
+  s += '/';
+  s += ' '; // add space at the end for tokenization
+  //Serial.println(s);
+
+  // display entire word (if more than 8 char, split)
+  int wordIdx = 0;
+  int start = 0;
+  while(wordIdx < s.length()) {
+    wordIdx = s.indexOf(' ',start);
+    if(wordIdx == -1) {
+      exit;  
+    }
+    //Serial.println(wordIdx);
+    String subs = s.substring(start,wordIdx);
+    //Serial.println(subs);
+    String s8 = "";  // 8 byte string
+    for(int i=0; i<subs.length(); i+=8) {
+      if( (i+8) > subs.length()) {
+        // pad last section to 8 bytes
+        s8 = subs.substring(i,subs.length());
+        while(s8.length()<8) {
+          s8 += ' '; // pad string with spaces to make 8 byte string
+        }
+      }
+      else {
+        s8 = subs.substring(i,i+8);  
+      }
+      //Serial.println(s8);
+      display8ByteString(s8);
+      syncOK(); // every 100ms to 1sec
+      delay(1000);
+    }
+    start=wordIdx+1;
+  }
+}  
