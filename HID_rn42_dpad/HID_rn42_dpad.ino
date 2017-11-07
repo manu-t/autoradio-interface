@@ -1,5 +1,6 @@
 // dpad C&K dpad & Renault 8200058695 steering wheel remote control
 // + RN42 (HID)
+// tested on trinket pro 5V 16MHz
 
 #include <SoftwareSerial.h>
 
@@ -33,8 +34,8 @@ void timerIsr() {
   encoder->service();
 }
 
-OneButton button1(3, true); // DPAD RIGHT (inverted)
-OneButton button2(4, true); // DPAD DOWN
+OneButton button1(4, true); // DPAD RIGHT (inverted)
+OneButton button2(3, true); // DPAD DOWN
 OneButton button3(5, true); // DPAD LEFT (inverted)
 OneButton button4(6, true); // DPAD UP
 
@@ -59,7 +60,7 @@ void setup() {
   Serial.begin(115200);  // uart de debug
   mySerial.begin(115200);  // uart de communication avec le module bt hid
 
-  encoder = new ClickEncoder(7, 8, 2);
+  encoder = new ClickEncoder(/*7, 8, 2*//*11,12,13*/11,12,8);
 
   Timer1.initialize(1000);
   Timer1.attachInterrupt(timerIsr); 
@@ -117,7 +118,7 @@ void loop() {
     #define VERBOSECASE(label) case label: Serial.println(#label); break;
     switch (b) {
       VERBOSECASE(ClickEncoder::Pressed);
-      VERBOSECASE(ClickEncoder::Held)
+      //VERBOSECASE(ClickEncoder::Held)
       VERBOSECASE(ClickEncoder::Released)
       case ClickEncoder::Clicked: Serial.println("ENTER"); mySerial.write(13); break;
       case ClickEncoder::DoubleClicked:
@@ -350,7 +351,8 @@ void sourcePlus() {
   else {
     Serial.println("AC HOME");
     consumerKeyPress(0x01);
-    consumerRelease();
+    consumerRelease();    
+    
   }  
 }
 
@@ -371,3 +373,4 @@ void muteSmartphone() {
   consumerKeyPress(0x40);
   consumerRelease();    
 }
+
