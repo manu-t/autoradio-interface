@@ -173,9 +173,15 @@ void loop() {
                       keyboardReleaseAll();
                     }
                     else if(keypad.key[i].kchar == 'D') {
+                      Serial.println("VOL-");
+                      consumerKeyPress(0x20);
+                      consumerRelease();
                       flagVolminus = false;
                     }
                     else if(keypad.key[i].kchar == 'C') {
+                      Serial.println("VOL+");
+                      consumerKeyPress(0x10);
+                      consumerRelease();
                       flagVolplus = false;
                     }
                     else {
