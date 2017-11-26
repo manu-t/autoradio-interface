@@ -207,16 +207,27 @@ void loop() {
     flagUpdateTxt = false;
     Serial.print(Txt);
     Serial.println(Txt.length()-1); // doesn't count ending char
+
+    // pre-filter known bad strings:
+    Txt.replace("OI FM", "OUI FM");
+    Txt.replace("%antexts1", "");
+    Txt.replace("%antexts2", "");
+    Serial.println(Txt);
   }
 
+  static int count = 0;
   if(Txt == "") { // empty string at startup
-    display8ByteString("HELLO   ");  
+    display8ByteString("HELLO   ");
+    if(count++ > 25) {
+      Txt == "";
+      display8ByteString("        ");
+    }
   }
 
-  //scrollDisplay(Txt);
-
-  //String teststr = "BUDDY HOLLYMOFO - WEEZER AND FUCK";
-  wordScroll(/*teststr*/Txt);
+  String teststr = "ZACK DE LA ROCHA - WE WANT IT ALL";
+  //scrollDisplay(teststr/*Txt*/);
+  //wordScroll(/*teststr*/Txt);
+  semiScroll(/*teststr*/Txt);
   delay(200);
 }
 
@@ -592,4 +603,111 @@ void wordScroll(String s) {
     }
     start=wordIdx+1;
   }
-}  
+}
+
+void semiScroll(String s)
+{
+  if(s.length() == 0) {
+    return;  
+  }
+
+  s.trim(); // remove \r\n at the end of string
+
+  String saveds = s;
+  int Idx = 0;  // find the " - " index
+  Idx = s.indexOf(" - ");
+  if(Idx == -1) {
+      exit;  
+    }
+  //Serial.println(Idx);
+  s = saveds.substring(0,Idx);
+  //Serial.println(s);
+
+  // Scroll artist string (until " - " token) 
+  String s8 = s.substring(0,8);
+  while( s8.length() < 8) {
+    s8 += ' ';  // pad to 8 byte string  
+  }
+  //Serial.println(s8);
+  
+  // display 1st 8 bytes
+  display8ByteString(s8);
+  syncOK(); // every 100ms to 1sec
+  delay(1000);
+  syncOK(); // every 100ms to 1sec
+  
+  // scroll after 8 bytes
+  if(s.length() > 8) {
+    for(int i=1;i<s.length();i++) {
+      //Serial.println(i);
+      if( (i+8) >= s.length()) {
+        // pad last section to 8 bytes
+        s8 = s.substring(i,s.length());
+        while(s8.length()<8) {
+          s8 += ' '; // pad string with spaces to make 8 byte string
+        }
+        i=s.length(); // stop scrolling at last section
+      }
+      else {
+        s8 = s.substring(i,i+8);  
+      }
+      
+      //Serial.println(s8);
+      display8ByteString(s8);
+      delay(500);
+      syncOK(); // every 100ms to 1sec
+    }  
+  }
+  
+
+  // print separator
+  display8ByteString("--------");
+  syncOK(); // every 100ms to 1sec
+  delay(500);
+
+  // Scroll song name
+  s = saveds.substring(Idx+3,saveds.length());
+  //Serial.println(s);
+  s8 = s.substring(0,8);
+  while( s8.length() < 8) {
+    s8 += ' ';  // pad to 8 byte string  
+  }
+  //Serial.println(s8);
+  
+  // display 1st 8 bytes
+  display8ByteString(s8);
+  syncOK(); // every 100ms to 1sec
+  delay(1000);
+  syncOK(); // every 100ms to 1sec
+
+  if(s.length() <= 8) {
+    syncOK();
+    return;
+  }
+  
+  // scroll after 8 bytes
+  for(int i=1;i<s.length();i++) {
+    //Serial.println(i);
+    if( (i+8) >= s.length()) {
+      // pad last section to 8 bytes
+      s8 = s.substring(i,s.length());
+      while(s8.length()<8) {
+        s8 += ' '; // pad string with spaces to make 8 byte string
+      }
+      i=s.length(); // stop scrolling at last section
+    }
+    else {
+      s8 = s.substring(i,i+8);  
+    }
+    
+    //Serial.println(s8);
+    display8ByteString(s8);
+    delay(500);
+    syncOK(); // every 100ms to 1sec
+  }
+
+  // print end separator
+  display8ByteString("////////");
+  syncOK(); // every 100ms to 1sec
+  delay(500);
+}
