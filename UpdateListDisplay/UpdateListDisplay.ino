@@ -560,6 +560,7 @@ void scrollDisplay(String s) {
     display8ByteString(s8);
     delay(500);
     syncOK(); // every 100ms to 1sec
+    delay(500);
   }
 }
 
@@ -656,10 +657,11 @@ void semiScroll(String s)
       display8ByteString(s8);
       delay(500);
       syncOK(); // every 100ms to 1sec
+      delay(500);
+      syncOK(); // every 100ms to 1sec
     }  
   }
   
-
   // print separator
   display8ByteString("--------");
   syncOK(); // every 100ms to 1sec
@@ -680,30 +682,29 @@ void semiScroll(String s)
   delay(1000);
   syncOK(); // every 100ms to 1sec
 
-  if(s.length() <= 8) {
-    syncOK();
-    return;
-  }
-  
-  // scroll after 8 bytes
-  for(int i=1;i<s.length();i++) {
-    //Serial.println(i);
-    if( (i+8) >= s.length()) {
-      // pad last section to 8 bytes
-      s8 = s.substring(i,s.length());
-      while(s8.length()<8) {
-        s8 += ' '; // pad string with spaces to make 8 byte string
+  if(s.length() > 8) {
+    // scroll after 8 bytes
+    for(int i=1;i<s.length();i++) {
+      //Serial.println(i);
+      if( (i+8) >= s.length()) {
+        // pad last section to 8 bytes
+        s8 = s.substring(i,s.length());
+        while(s8.length()<8) {
+          s8 += ' '; // pad string with spaces to make 8 byte string
+        }
+        i=s.length(); // stop scrolling at last section
       }
-      i=s.length(); // stop scrolling at last section
+      else {
+        s8 = s.substring(i,i+8);  
+      }
+      
+      //Serial.println(s8);
+      display8ByteString(s8);
+      delay(500);
+      syncOK(); // every 100ms to 1sec
+      delay(500);
+      syncOK(); // every 100ms to 1sec
     }
-    else {
-      s8 = s.substring(i,i+8);  
-    }
-    
-    //Serial.println(s8);
-    display8ByteString(s8);
-    delay(500);
-    syncOK(); // every 100ms to 1sec
   }
 
   // print end separator
