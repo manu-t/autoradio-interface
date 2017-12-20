@@ -1,3 +1,7 @@
+/* 20/12/2017: new bluetooth module: RN-52 (instead of Seedstudio bluetooth serial)
+   tested with Mikroelektronika's BT audio click MIKROE-2399 : https://www.mikroe.com/bt-audio-click
+*/ 
+
 /* Test of the Renault Update List display
    The display is connected to the head unit via CAN interface
    CAN ID is 11 bits
@@ -42,13 +46,20 @@
 
 */
 
+#define DATA_CMD_PIN  3  // change RN52 mode : Data or command
+enum RN52MODE {
+  DATA_MODE,  // 0
+  CMD_MODE   // 1
+};
+
 #include <SerialCommand.h>
 
 #include "mcp_can.h"
 #include <SPI.h>
 #include "can_ext.h"
 
-#include <NeoSWSerial.h>
+#include <RN52.h>
+RN52 rn52(7,8);  //set RX to pin 7 and TX to pin 8 on Arduino (other way round on RN52)
 
 #define AFFA2_KEY_LOAD 0x0000 / * This at the bottom of the remote;) * /
 #define AFFA2_KEY_SRC_RIGHT 0x0001
@@ -94,31 +105,9 @@ unsigned char msg5c1[8] = {0x74, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81};
 unsigned char msg4a9[8] = {0x74, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81};
 
 String Txt = "";      // text to display
-String savedTxt = ""; // new text wiating to be displayed
-bool flagUpdateTxt = false;
 
 SerialCommand sCmd;     // The SerialCommand object
-
-NeoSWSerial blueToothSerial(7,8);
     
-static void handleRxChar( uint8_t c ) {
-  static String str = "";
-  if (isPrintable(c)) {
-    str += (char)c;
-  }
-  if (c == '\n') {
-    //Serial.println("newline");
-    str += (char)c; // append newline at the end of the string
-    //Serial.println(str);
-    if(str[0] == 'd') {
-      savedTxt = str.substring(2,str.length());
-      flagUpdateTxt = true;
-      //Serial.print(str);
-    }
-    str = "";
-  }
-}
-
 void setup() {
   Serial.begin(115200);
 
@@ -135,6 +124,8 @@ void setup() {
   sCmd.addCommand("m", messageTextIcons);  //
   sCmd.addCommand("d", displaySong);  //
   sCmd.setDefaultHandler(unrecognized);      // Handler for command that isn't matched  (says "What?")
+
+  rn52.begin(9600);
 
   // CAN 11 bits 500kbauds
   if (CAN.begin(CAN_500KBPS) == CAN_OK)  // Baud rates defined in mcp_can_dfs.h
@@ -165,8 +156,10 @@ void setup() {
   
 //  send_to_display(0x121, test_packet, sizeof(test_packet));
 
-  blueToothSerial.attachInterrupt( handleRxChar );
-  setupBlueToothConnection();
+  pinMode(DATA_CMD_PIN, OUTPUT);
+  digitalWrite(DATA_CMD_PIN, CMD_MODE);
+  rn52.reconnectLast();
+
 }
 
 void loop() {
@@ -202,33 +195,48 @@ void loop() {
   // TODO: periodically send sync command to display (100ms -> 1sec)
   syncOK();
 
-  if(flagUpdateTxt) {
-    Txt = savedTxt;
-    flagUpdateTxt = false;
-    Serial.print(Txt);
-    Serial.println(Txt.length()-1); // doesn't count ending char
+  Txt = "";
 
-    // pre-filter known bad strings:
-    Txt.replace("OI FM", "OUI FM");
-    Txt.replace("%antexts1", "");
-    Txt.replace("%antexts2", "");
-    Serial.println(Txt);
+  String artistStr = rn52.trackTitle();
+  Serial.print("Artist: "); Serial.println(artistStr);    //ouifm : track = artist !
+  if(artistStr != "") {
+    Txt += artistStr;
   }
-
-  static int count = 0;
-  if(Txt == "") { // empty string at startup
-    display8ByteString("HELLO   ");
-    if(count++ > 25) {
-      Txt == "";
-      display8ByteString("        ");
-    }
+  String titleStr = rn52.album();
+  Serial.print("Title: "); Serial.println(titleStr); //ouifm : album = title !
+  if(titleStr != "") {
+    Txt += " - "; // separator
+    Txt += titleStr;
   }
+  
+  // pre-filter known bad strings:
+  Txt.replace("Album=", "");
+  Txt.replace("Title=", "");
+  Txt.replace("OÜI FM Alternatif", "OUIFM AL");
+  Txt.replace("OÜI FM Rock 2000", "OUIFM 2K");
+  Txt.replace("OÜI FM Rock 90's", "OUIFM 90");
+  Txt.replace("OÜI FM Rock 80's", "OUIFM 80");
+  Txt.replace("OÜI FM Rock 70's", "OUIFM 70");
+  Txt.replace("OÜI FM Rock 60's", "OUIFM 60");
+  Txt.replace("OÜI FM", "OUI FM");
 
+  Serial.println(Txt);
+  Serial.println(Txt.length()-1); // doesn't count ending char
+
+//  static int count = 0;
+//  if(Txt == "") { // empty string at startup
+//    display8ByteString("HELLO   ");
+//    if(count++ > 25) {
+//      Txt == "";
+//      display8ByteString("        ");
+//    }
+//  }
+  
   String teststr = "ZACK DE LA ROCHA - WE WANT IT ALL";
   //scrollDisplay(teststr/*Txt*/);
   //wordScroll(/*teststr*/Txt);
-  semiScroll(/*teststr*/Txt);
-  delay(200);
+  //semiScroll(/*teststr*/Txt);
+  delay(500);
 }
 
 void MCP2515_ISR() {
@@ -467,56 +475,6 @@ void display8ByteString(String s) {
 //  }
 //  Serial.println();
   send_to_display(0x121,(uint8_t *)(charArray), 27);
-}
-
-void setupBlueToothConnection() // Configuration du module Bluetooth Esclave
-{
-  blueToothSerial.begin(38400);                              //Mettre la bande passante du module Bluetooth à 38400 baud
-  delay(100);                                               // Attendre 100ms
-  sendBlueToothCommand("\r\n+STWMOD=0\r\n");                 // Configuration en esclave
-  sendBlueToothCommand("\r\n+STNA=ERMABOARD_Bluetooth\r\n"); // Définir le nom du périphérique 
-  sendBlueToothCommand("\r\n+STAUTO=1\r\n");                 // autorise à se connecter automatiquement au dernier périphérique lié
-  sendBlueToothCommand("\r\n+STOAUT=1\r\n");                 // Autorise les appareils liés à se connecter
-//  sendBlueToothCommand("\r\n +STPIN=0000\r\n");              // Régler le PIN CODE à 0000
-  delay(200);                                               // Attendre 200ms
-  sendBlueToothCommand("\r\n+INQ=1\r\n");                    // Module visible en cas de recherche
-  delay(200);                                               // Attendre 200ms
-}
-
-void CheckOK()        //Vérifie si la réponse "OK" est reçu
-{
-  char a,b;
-  while(1)
-  {
-    if(blueToothSerial.available())      // Si un caractère présent sur l'UART Bluetooth
-    {
-      a = blueToothSerial.read();          // Stocké le premier caractère dans a
-
-      if('O' == a)                         // Si a = O
-      {
-
-        while(blueToothSerial.available()) // Tant qu'un caractère est disponible sur la liaison Bluetooth :
-        {
-          b = blueToothSerial.read();     // Stocké le caractère dans b
-          break;
-        }
-        if('K' == b)                       // Si b = K alors la réponse OK est bien reçu
-        {
-          break;
-        }
-      }
-    }
-  }
-
-  while( (a = blueToothSerial.read()) != -1)
-  {
-  }
-}
-
-void sendBlueToothCommand(char command[])
-{
-  blueToothSerial.print(command);
-  delay(50)/*CheckOK()*/;
 }
 
 void scrollDisplay(String s) {
