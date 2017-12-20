@@ -1,3 +1,7 @@
+/* 20/12/2017: new bluetooth module: RN-52 (instead of Seedstudio bluetooth serial)
+   tested with Mikroelektronika's BT audio click MIKROE-2399 : https://www.mikroe.com/bt-audio-click
+*/ 
+
 /* Test of the Renault Update List display
    The display is connected to the head unit via CAN interface
    CAN ID is 11 bits
@@ -41,6 +45,12 @@
    The radio responds with packet ID 0x04A9, the first byte is 0x74 and the remaining 0x81
 
 */
+
+#define DATA_CMD_PIN  3  // change RN52 mode : Data or command
+enum RN52MODE {
+  DATA_MODE,  // 0
+  CMD_MODE   // 1
+};
 
 #include <SerialCommand.h>
 
@@ -165,6 +175,8 @@ void setup() {
   
 //  send_to_display(0x121, test_packet, sizeof(test_packet));
 
+  pinMode(DATA_CMD_PIN, OUTPUT);
+  digitalWrite(DATA_CMD_PIN, DATA_MODE);  // RN52 data mode
   blueToothSerial.attachInterrupt( handleRxChar );
   setupBlueToothConnection();
 }
@@ -471,52 +483,18 @@ void display8ByteString(String s) {
 
 void setupBlueToothConnection() // Configuration du module Bluetooth Esclave
 {
-  blueToothSerial.begin(38400);                              //Mettre la bande passante du module Bluetooth à 38400 baud
+  blueToothSerial.begin(9600);
   delay(100);                                               // Attendre 100ms
-  sendBlueToothCommand("\r\n+STWMOD=0\r\n");                 // Configuration en esclave
-  sendBlueToothCommand("\r\n+STNA=ERMABOARD_Bluetooth\r\n"); // Définir le nom du périphérique 
-  sendBlueToothCommand("\r\n+STAUTO=1\r\n");                 // autorise à se connecter automatiquement au dernier périphérique lié
-  sendBlueToothCommand("\r\n+STOAUT=1\r\n");                 // Autorise les appareils liés à se connecter
-//  sendBlueToothCommand("\r\n +STPIN=0000\r\n");              // Régler le PIN CODE à 0000
+  sendBlueToothCommand("B\r\n");                            // connect to smartphone
   delay(200);                                               // Attendre 200ms
-  sendBlueToothCommand("\r\n+INQ=1\r\n");                    // Module visible en cas de recherche
-  delay(200);                                               // Attendre 200ms
-}
-
-void CheckOK()        //Vérifie si la réponse "OK" est reçu
-{
-  char a,b;
-  while(1)
-  {
-    if(blueToothSerial.available())      // Si un caractère présent sur l'UART Bluetooth
-    {
-      a = blueToothSerial.read();          // Stocké le premier caractère dans a
-
-      if('O' == a)                         // Si a = O
-      {
-
-        while(blueToothSerial.available()) // Tant qu'un caractère est disponible sur la liaison Bluetooth :
-        {
-          b = blueToothSerial.read();     // Stocké le caractère dans b
-          break;
-        }
-        if('K' == b)                       // Si b = K alors la réponse OK est bien reçu
-        {
-          break;
-        }
-      }
-    }
-  }
-
-  while( (a = blueToothSerial.read()) != -1)
-  {
-  }
 }
 
 void sendBlueToothCommand(char command[])
 {
+  digitalWrite(DATA_CMD_PIN, CMD_MODE);
   blueToothSerial.print(command);
-  delay(50)/*CheckOK()*/;
+  delay(50);
+  digitalWrite(DATA_CMD_PIN, DATA_MODE);
 }
 
 void scrollDisplay(String s) {
