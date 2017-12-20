@@ -161,6 +161,21 @@ void loop() {
 
                     if( flagVolplus && flagVolminus ) {
                       muteSmartphone();  
+                      break;
+                    }
+
+                    if(flagVolplus) {
+                      Serial.println("VOL+");
+                      consumerKeyPress(0x10);
+                      consumerRelease();
+                      break;
+                    }
+
+                    if(flagVolminus) {
+                      Serial.println("VOL-");
+                      consumerKeyPress(0x20);
+                      consumerRelease();
+                      break;
                     }
                 break;
                     case HOLD:
@@ -173,15 +188,9 @@ void loop() {
                       keyboardReleaseAll();
                     }
                     else if(keypad.key[i].kchar == 'D') {
-                      Serial.println("VOL-");
-                      consumerKeyPress(0x20);
-                      consumerRelease();
                       flagVolminus = false;
                     }
                     else if(keypad.key[i].kchar == 'C') {
-                      Serial.println("VOL+");
-                      consumerKeyPress(0x10);
-                      consumerRelease();
                       flagVolplus = false;
                     }
                     else {
