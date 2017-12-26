@@ -156,9 +156,11 @@ void setup() {
   
 //  send_to_display(0x121, test_packet, sizeof(test_packet));
 
+  Serial.println("BT startup...");
   pinMode(DATA_CMD_PIN, OUTPUT);
   digitalWrite(DATA_CMD_PIN, CMD_MODE);
-  rn52.reconnectLast();
+  //rn52.volumeOnStartup(0x0F);// 0x00 to 0x0F
+  Serial.println("done.");
 
 }
 
@@ -195,17 +197,21 @@ void loop() {
   // TODO: periodically send sync command to display (100ms -> 1sec)
   syncOK();
 
+
+Serial.println("metadata");
   Txt = "";
 
   String artistStr = rn52.trackTitle();
   Serial.print("Artist: "); Serial.println(artistStr);    //ouifm : track = artist !
   if(artistStr != "") {
+    artistStr.trim();
     Txt += artistStr;
   }
   String titleStr = rn52.album();
   Serial.print("Title: "); Serial.println(titleStr); //ouifm : album = title !
   if(titleStr != "") {
     Txt += " - "; // separator
+    titleStr.trim();
     Txt += titleStr;
   }
   
@@ -221,21 +227,27 @@ void loop() {
   Txt.replace("OÜI FM", "OUI FM");
 
   Serial.println(Txt);
-  Serial.println(Txt.length()-1); // doesn't count ending char
-
-//  static int count = 0;
-//  if(Txt == "") { // empty string at startup
-//    display8ByteString("HELLO   ");
-//    if(count++ > 25) {
-//      Txt == "";
-//      display8ByteString("        ");
-//    }
+  Serial.println(Txt.length());
+//  char charArray[Txt.length()+1] = {'\0'};
+//  Txt.toCharArray(charArray, Txt.length()+1);
+//  for(int i = 0; i < Txt.length(); i++) {
+//    Serial.print(charArray[i], HEX); Serial.print(' ');
 //  }
+//  Serial.println();
+
+  static int count = 0;
+  if(Txt == "") { // empty string at startup
+    display8ByteString("HELLO   ");
+    if(count++ > 25) {
+      Txt == "";
+      display8ByteString("        ");
+    }
+  }
   
   String teststr = "ZACK DE LA ROCHA - WE WANT IT ALL";
   //scrollDisplay(teststr/*Txt*/);
   //wordScroll(/*teststr*/Txt);
-  //semiScroll(/*teststr*/Txt);
+  semiScroll(/*teststr*/Txt);
   delay(500);
 }
 
