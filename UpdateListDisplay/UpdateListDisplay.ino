@@ -631,6 +631,11 @@ void semiScroll(String s)
       syncOK(); // every 100ms to 1sec
     }  
   }
+
+  // check if same string (radio announcement)
+  if( s == saveds.substring(Idx+3,saveds.length()) ) {
+    return;  
+  }
   
   // print separator
   display8ByteString("--------");
