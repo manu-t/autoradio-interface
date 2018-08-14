@@ -34,10 +34,10 @@ void timerIsr() {
   encoder->service();
 }
 
-OneButton button1(4, true); // DPAD RIGHT (inverted)
-OneButton button2(3, true); // DPAD DOWN
-OneButton button3(5, true); // DPAD LEFT (inverted)
-OneButton button4(6, true); // DPAD UP
+OneButton button1(6, true); // DPAD RIGHT
+OneButton button2(4, true); // DPAD DOWN
+OneButton button3(3, true); // DPAD LEFT
+OneButton button4(5, true); // DPAD UP
 
 // matrix keypad Renault 820058695
 const byte rows = 3; //three rows
